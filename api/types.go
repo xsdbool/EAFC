@@ -1,4 +1,4 @@
-package main
+package api
 
 type Currency struct {
 	Name       string `json:"name"`

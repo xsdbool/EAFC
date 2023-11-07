@@ -1,4 +1,4 @@
-package main
+package api
 
 // AuctionStatus represents the different auction statuses.
 type AuctionStatus string
