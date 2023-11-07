@@ -137,7 +137,7 @@ type RelistResponse struct {
 }
 
 type AuctionHouseResponse struct {
-	Id                       int32                    `json:"id"`
+	Id                       int64                    `json:"id"`
 	IdStr                    string                   `json:"idStr"`
 	DynamicObjectivesUpdates DynamicObjectivesUpdates `json:"dynamicObjectivesUpdates"`
 }
