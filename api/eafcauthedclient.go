@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type EaFcAuthedclient struct {
@@ -21,6 +23,10 @@ func NewEAFCAuthedClient(sessionID string) *EaFcAuthedclient {
 			Jar: http.DefaultClient.Jar,
 		},
 	}
+}
+
+func (c *EaFcAuthedclient) Sleep() {
+	time.Sleep(time.Duration(rand.Int31n(1000)+3000) * time.Millisecond) //normal user behaviour
 }
 
 func (c *EaFcAuthedclient) Do(req *http.Request) (*http.Response, error) {
@@ -107,7 +113,7 @@ func (c *EaFcAuthedclient) Bid(bidPrice int, auction AuctionInfo) (*BidResponse,
 		return nil, ErrBidding
 	}
 
-	if auction.TradeState == string(CLOSED) {
+	if auction.TradeState == string(Closed) {
 		return nil, ErrBidding
 	}
 
@@ -145,7 +151,7 @@ func (c *EaFcAuthedclient) Bid(bidPrice int, auction AuctionInfo) (*BidResponse,
 
 func (c *EaFcAuthedclient) Buy(auction AuctionInfo) (*BidResponse, error) {
 
-	if auction.TradeState == string(CLOSED) {
+	if auction.TradeState == string(Closed) {
 		return nil, ErrBidding
 	}
 
@@ -301,8 +307,19 @@ func (c *EaFcAuthedclient) Watchlist() (*WatchlistResponse, error) {
 
 }
 
-func (c *EaFcAuthedclient) ClearWatchlist(tradeIds []int) error {
+func (c *EaFcAuthedclient) ClearWatchlist() error {
+	wr, err := c.Watchlist()
+	if err != nil {
+		return ErrClearWatchlist
+	}
 
+	c.Sleep()
+	var tradeIds []int
+	for _, auction := range wr.AuctionInfo {
+		if auction.BidState == string(Outbid) && auction.TradeState == string(Closed) {
+			tradeIds = append(tradeIds, auction.TradeId)
+		}
+	}
 	if len(tradeIds) == 0 {
 		return ErrClearWatchlist
 	}
