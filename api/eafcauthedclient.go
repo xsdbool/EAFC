@@ -8,17 +8,22 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
 type EaFcAuthedclient struct {
-	sessionID string
-	client    http.Client
+	maxTimeout int32
+	minTimeout int32
+	sessionID  string
+	client     http.Client
 }
 
-func NewEAFCAuthedClient(sessionID string) *EaFcAuthedclient {
+func NewEAFCAuthedClient(sessionID string, maxTimeout int32, minTimeout int32) *EaFcAuthedclient {
 	return &EaFcAuthedclient{
-		sessionID: sessionID,
+		maxTimeout: maxTimeout,
+		minTimeout: minTimeout,
+		sessionID:  sessionID,
 		client: http.Client{
 			Jar: http.DefaultClient.Jar,
 		},
@@ -26,7 +31,9 @@ func NewEAFCAuthedClient(sessionID string) *EaFcAuthedclient {
 }
 
 func (c *EaFcAuthedclient) Sleep() {
-	time.Sleep(time.Duration(rand.Int31n(1000)+3000) * time.Millisecond) //normal user behaviour
+	random_timeout := rand.Int31n(c.maxTimeout - c.minTimeout)
+	timeout := random_timeout + int32(c.minTimeout)
+	time.Sleep(time.Duration(time.Duration(timeout) * time.Millisecond))
 }
 
 func (c *EaFcAuthedclient) Do(req *http.Request) (*http.Response, error) {
@@ -37,20 +44,28 @@ func (c *EaFcAuthedclient) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("[%d] %s\n", resp.StatusCode, resp.Request.URL.Path)
 
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, fmt.Errorf("session expired / unauthorized")
-	}
+	fmt.Printf("[%d] %s\n", resp.StatusCode, resp.Request.URL.String())
+
 	if resp.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
+		fmt.Printf("[%d] %s\n", resp.StatusCode, UtasErrorCode[resp.StatusCode])
+
+		var v any
+		err := json.NewDecoder(resp.Body).Decode(&v)
+		if err == nil {
+			fmt.Printf("%v\n", v)
 		}
-		fmt.Println(string(body))
-
+		if err != nil {
+			body, _ := io.ReadAll(resp.Body)
+			fmt.Println(string(body))
+		}
 	}
-
+	switch code := resp.StatusCode; code {
+	case http.StatusUnauthorized:
+		return nil, ErrSessionExpired
+	case 458:
+		return nil, ErrCaptchaRequired
+	}
 	return resp, err
 }
 
@@ -110,10 +125,12 @@ func (c *EaFcAuthedclient) SearchTransfermarket(query *url.Values) (*Transfermar
 func (c *EaFcAuthedclient) Bid(bidPrice int, auction AuctionInfo) (*BidResponse, error) {
 
 	if bidPrice <= auction.CurrentBid {
+		fmt.Println("bidPrice <= CurrentBid")
 		return nil, ErrBidding
 	}
 
 	if auction.TradeState == string(Closed) {
+		fmt.Println("trade closed")
 		return nil, ErrBidding
 	}
 
@@ -142,11 +159,18 @@ func (c *EaFcAuthedclient) Bid(bidPrice int, auction AuctionInfo) (*BidResponse,
 	case http.StatusOK:
 		return &bidResponse, nil
 	case 512:
+		fallthrough
 	case 521:
+		fallthrough
 	case 426:
 		return nil, ErrFunctionDisabled
+	case 461:
+		body, _ := io.ReadAll(response.Body)
+		if strings.Contains(string(body), "Watchlist is full") {
+			return nil, ErrWatchlistIsFull
+		}
 	}
-	return nil, fmt.Errorf("error bidding on Item")
+	return nil, ErrBidding
 }
 
 func (c *EaFcAuthedclient) Buy(auction AuctionInfo) (*BidResponse, error) {
@@ -242,7 +266,7 @@ func (c *EaFcAuthedclient) Relist() (*RelistResponse, error) {
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, ErrReslist
+		return nil, ErrRelist
 	}
 	return &reslistResponse, nil
 
@@ -274,13 +298,12 @@ func (c *EaFcAuthedclient) ItemToPile(pile string, auction AuctionInfo) (*ItemRe
 
 	var itemResponse ItemResponse
 	response, err := c.extractJSON(req, &itemResponse)
+	if err != nil {
+		return nil, err
+	}
 
 	if response.StatusCode != http.StatusOK {
 		return nil, ErrMoveItem
-	}
-
-	if err != nil {
-		return nil, err
 	}
 	return &itemResponse, nil
 }
