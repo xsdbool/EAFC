@@ -1,11 +1,11 @@
-package main
+package api
 
 // BidStatus represents the different bid statuses.
 type BidStatus string
 
 const (
-	BUYNOW  BidStatus = "buyNow"
-	HIGHEST BidStatus = "highest"
-	NONE    BidStatus = "none"
-	OUTBID  BidStatus = "outbid"
+	BuyNow  BidStatus = "buyNow"
+	Highest BidStatus = "highest"
+	None    BidStatus = "none"
+	Outbid  BidStatus = "outbid"
 )

@@ -4,10 +4,10 @@ package api
 type AuctionStatus string
 
 const (
-	ACTIVE   AuctionStatus = "active"
-	CLOSED   AuctionStatus = "closed"
-	EXPIRED  AuctionStatus = "expired"
-	INACTIVE AuctionStatus = "inactive"
-	INVALID  AuctionStatus = "invalid"
+	Active   AuctionStatus = "active"
+	Closed   AuctionStatus = "closed"
+	Expired  AuctionStatus = "expired"
+	Inactive AuctionStatus = "inactive"
+	Invalid  AuctionStatus = "invalid"
 	// Add more auction statuses as needed
 )
