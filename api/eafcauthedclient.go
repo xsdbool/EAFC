@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -28,8 +29,8 @@ func NewEAFCAuthedClient(sessionID string, maxTimeout int32, minTimeout int32) *
 	})
 	if err != nil {
 		panic("cookie jar fail")
-	}
-
+  }
+  
 	return &EaFcAuthedclient{
 		maxTimeout: maxTimeout,
 		minTimeout: minTimeout,
@@ -72,8 +73,7 @@ func (c *EaFcAuthedclient) Do(req *http.Request) (*http.Response, error) {
 	}
 	switch code := resp.StatusCode; code {
 	case http.StatusUnauthorized:
-		panic("session expired")
-		//return nil, ErrSessionExpired
+		return nil, ErrSessionExpired
 	case 458:
 		return nil, ErrCaptchaRequired
 	}
@@ -350,8 +350,7 @@ func (c *EaFcAuthedclient) ClearWatchlist() error {
 	c.Sleep()
 	var tradeIds []int
 	for _, auction := range wr.AuctionInfo {
-		//if auction.BidState == string(Outbid) && auction.TradeState == string(Closed) {
-		if auction.BidState == string(Outbid) {
+		if auction.BidState == string(Outbid) && auction.TradeState == string(Closed) {
 			tradeIds = append(tradeIds, auction.TradeId)
 		}
 	}
