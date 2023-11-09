@@ -7,9 +7,12 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"time"
+
+	"golang.org/x/net/publicsuffix"
 )
 
 type EaFcAuthedclient struct {
@@ -20,12 +23,19 @@ type EaFcAuthedclient struct {
 }
 
 func NewEAFCAuthedClient(sessionID string, maxTimeout int32, minTimeout int32) *EaFcAuthedclient {
+	jar, err := cookiejar.New(&cookiejar.Options{
+		PublicSuffixList: publicsuffix.List,
+	})
+	if err != nil {
+		panic("cookie jar fail")
+	}
+
 	return &EaFcAuthedclient{
 		maxTimeout: maxTimeout,
 		minTimeout: minTimeout,
 		sessionID:  sessionID,
 		client: http.Client{
-			Jar: http.DefaultClient.Jar,
+			Jar: jar,
 		},
 	}
 }
@@ -45,7 +55,7 @@ func (c *EaFcAuthedclient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	fmt.Printf("[%d] %s\n", resp.StatusCode, resp.Request.URL.String())
+	fmt.Printf("[%d] %s %s\n", resp.StatusCode, resp.Request.URL.Path, resp.Request.URL.RawQuery)
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("[%d] %s\n", resp.StatusCode, UtasErrorCode[resp.StatusCode])
@@ -62,7 +72,8 @@ func (c *EaFcAuthedclient) Do(req *http.Request) (*http.Response, error) {
 	}
 	switch code := resp.StatusCode; code {
 	case http.StatusUnauthorized:
-		return nil, ErrSessionExpired
+		panic("session expired")
+		//return nil, ErrSessionExpired
 	case 458:
 		return nil, ErrCaptchaRequired
 	}
@@ -339,7 +350,8 @@ func (c *EaFcAuthedclient) ClearWatchlist() error {
 	c.Sleep()
 	var tradeIds []int
 	for _, auction := range wr.AuctionInfo {
-		if auction.BidState == string(Outbid) && auction.TradeState == string(Closed) {
+		//if auction.BidState == string(Outbid) && auction.TradeState == string(Closed) {
+		if auction.BidState == string(Outbid) {
 			tradeIds = append(tradeIds, auction.TradeId)
 		}
 	}
